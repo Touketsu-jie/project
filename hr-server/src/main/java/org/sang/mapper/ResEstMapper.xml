@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.sang.mapper.ResEstMapper">
+
+    <insert id="addRes" parameterType="org.sang.bean.Resource" useGeneratedKeys="true" keyProperty="resourceId" keyColumn="resource_id">
+            insert into project_resource (project_id, month, status, created_date)
+    values (#{projectId,jdbcType=INTEGER},
+      #{month,jdbcType=VARCHAR},
+      #{status,jdbcType=VARCHAR},
+      now()
+      )
+    </insert>
+    <resultMap id="BaseResultMap" type="org.sang.bean.Resource">
+        <id column="resource_id" property="resourceId"/>
+        <result column="project_id" property="projectId"/>
+        <result column="month" property="month"/>
+        <result column="status" property="status"/>
+        <result column="created_date" property="createdDate"/>
+        <result column="project_name" property="projectName"/>
+        <result column="members" property="members"/>
+        <result column="resource_total" property="resourceTotal"/>
+        <result column="project_code" property="projectCode"/>
+        <result column="jp_project_code" property="jpProjectCode"/>
+    </resultMap>
+    <resultMap id="DetailResultMap" type="org.sang.bean.ResourceDetail">
+        <id column="resource_id" property="resourceId"/>
+        <id column="resource_detail_id" property="resourceDetailId"/>
+        <id column="resource" property="resource"/>
+        <id column="employee_id" property="employeeId"/>
+        <id column="start_date" property="startDate"/>
+        <id column="end_date" property="endDate"/>
+        <id column="resource_level" property="resourceLevel"/>
+        <id column="employeeName" property="employeeName"/>
+    </resultMap>
+    <select id="getResourceByPage" resultMap="BaseResultMap">
+        SELECT
+        r.*,
+        p.`name` AS project_name,
+        p.project_code,
+        p.jp_project_code,
+        (select count(1) from resource_detail where resource_id = r.resource_id) as members,
+        (select sum(resource) from resource_detail where resource_id = r.resource_id) as resource_total
+        FROM
+        project_resource r,
+        projects p
+        WHERE
+        r.project_id = p.`id`
+        <if test="keywords!=null and keywords!=''">
+        AND (p.`name` LIKE concat('%',#{keywords},'%')
+        or p.`project_code` LIKE concat('%',#{keywords},'%')
+        or p.`jp_project_code` LIKE concat('%',#{keywords},'%'))
+        </if>
+        <if test="month != null and month !=''">
+         AND  r.month = #{month,jdbcType=VARCHAR}
+        </if>
+        <if test="resourceId != null and resourceId !=''">
+            AND  r.resource_id = #{resourceId,jdbcType=INTEGER}
+        </if>
+        <if test="start!=null and size!=''">
+            order by r.resource_id limit #{start},#{size}
+        </if>
+    </select>
+    <select id="getCountByKeywords" resultType="Long">
+        SELECT count(1) 
+        FROM
+        project_resource r,
+        projects p
+        WHERE
+        r.project_id = p.`id`
+        <if test="keywords!=null and keywords!=''">
+        AND (p.`name` LIKE concat('%',#{keywords},'%')
+        or p.`project_code` LIKE concat('%',#{keywords},'%')
+        or p.`jp_project_code` LIKE concat('%',#{keywords},'%'))
+        </if>
+        <if test="month != null and month !=''">
+         AND  month = #{month,jdbcType=VARCHAR}
+        </if>
+    </select>
+    <update id="updateResource">
+        update project_resource
+        <set>
+            <if test="resource.projectId != null">
+                project_id = #{resource.projectId,jdbcType=INTEGER},
+            </if>
+            <if test="resource.month != null">
+                month = #{resource.month,jdbcType=VARCHAR},
+            </if>
+            <if test="resource.status != null">
+                status = #{resource.status,jdbcType=CHAR},
+            </if>
+        </set>
+        where resource_id = #{resource.resource_id,jdbcType=INTEGER}
+    </update>
+    <delete id="deleteResById">
+        DELETE FROM project_resource WHERE resource_id IN
+        <foreach collection="ids" separator="," open="(" close=")" item="id">
+            #{id}
+        </foreach>
+    </delete>
+    <insert id="addResourceDetail">
+       insert into resource_detail (resource_id, resource, employee_id, resource_level,start_date, end_date )
+        values
+        <foreach collection="details" item="detail" separator=",">
+            (#{detail.resourceId,jdbcType=INTEGER},
+             #{detail.resource,jdbcType=INTEGER},
+     		 #{detail.employeeId,jdbcType=VARCHAR},
+      		 #{detail.resourceLevel,jdbcType=VARCHAR},
+             #{detail.startDate,jdbcType=VARCHAR},
+             #{detail.endDate,jdbcType=VARCHAR}
+            )
+        </foreach>
+    </insert>
+    
+    <select id="selectEmployeeByName" resultType="map">
+        SELECT
+        e.`name` as value,
+        e.`id`,
+        e.jobLevelId,
+        j.titleLevel
+        FROM
+        employee e,
+        joblevel j
+        WHERE
+        e.jobLevelId = j.id
+        <if test="keywords!=null and keywords!=''">
+        AND (e.`name` LIKE concat('%',#{keywords},'%'))
+        </if>
+    </select>
+    <select id="getResourceDetailByPage" resultMap="DetailResultMap">
+        SELECT
+        r.*,
+        e.`name` AS employeeName
+        FROM
+        resource_detail r,
+        employee e
+        WHERE
+        r.employee_id = e.id
+        AND r.resource_id = #{resourceId,jdbcType=INTEGER}
+    </select>
+</mapper>

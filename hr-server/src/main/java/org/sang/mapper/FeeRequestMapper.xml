@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.sang.mapper.FeeRequestMapper">
+
+    <resultMap id="BaseResultMap" type="org.sang.bean.Resource">
+        <id column="resource_id" property="resourceId"/>
+        <result column="project_id" property="projectId"/>
+        <result column="month" property="month"/>
+        <result column="status" property="status"/>
+        <result column="created_date" property="createdDate"/>
+        <result column="project_name" property="projectName"/>
+        <result column="members" property="members"/>
+        <result column="resource_total" property="resourceTotal"/>
+        <result column="project_code" property="projectCode"/>
+        <result column="jp_project_code" property="jpProjectCode"/>
+        <result column="resource_fee_total" property="resourceFeeTotal"/>
+    </resultMap>
+    <resultMap id="DetailResultMap" type="org.sang.bean.ResourceDetail">
+        <id column="resource_id" property="resourceId"/>
+        <id column="resource_detail_id" property="resourceDetailId"/>
+        <id column="resource" property="resource"/>
+        <id column="employee_id" property="employeeId"/>
+        <id column="start_date" property="startDate"/>
+        <id column="end_date" property="endDate"/>
+        <id column="resource_level" property="resourceLevel"/>
+        <id column="employeeName" property="employeeName"/>
+    </resultMap>
+    <select id="getFeeRequestByPage" resultMap="BaseResultMap">
+        SELECT
+        r.*,
+        p.`name` AS project_name,
+        p.project_code,
+        p.jp_project_code,
+        (select count(1) from resource_detail where resource_id = r.resource_id) as members,
+        (select sum(resource) from resource_detail where resource_id = r.resource_id) as resource_total,
+        (select sum(l.fee)  from resource_detail r, joblevel l where resource_id = r.resource_id and r.resource_level = l.titleLevel) as resource_fee_total
+        FROM
+        project_resource r,
+        projects p
+        WHERE
+        r.project_id = p.`id`
+        <if test="keywords!=null and keywords!=''">
+        AND (p.`name` LIKE concat('%',#{keywords},'%')
+        or p.`project_code` LIKE concat('%',#{keywords},'%')
+        or p.`jp_project_code` LIKE concat('%',#{keywords},'%'))
+        </if>
+        <if test="month != null and month !=''">
+         AND  r.month = #{month,jdbcType=VARCHAR}
+        </if>
+        <if test="start!=null and size!=''">
+            order by r.resource_id limit #{start},#{size}
+        </if>
+    </select>
+    <select id="getCountByKeywords" resultType="Long">
+        SELECT count(1) 
+        FROM
+        project_resource r,
+        projects p
+        WHERE
+        r.project_id = p.`id`
+        <if test="keywords!=null and keywords!=''">
+        AND (p.`name` LIKE concat('%',#{keywords},'%')
+        or p.`project_code` LIKE concat('%',#{keywords},'%')
+        or p.`jp_project_code` LIKE concat('%',#{keywords},'%'))
+        </if>
+        <if test="month != null and month !=''">
+         AND  month = #{month,jdbcType=VARCHAR}
+        </if>
+    </select>
+</mapper>
